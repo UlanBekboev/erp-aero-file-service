@@ -16,9 +16,9 @@ import { Request, Response, NextFunction } from 'express';
  */
 export const errorHandler = (
   err: any,
-  req: Request,
+  _req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ): void => {
   // Логируем ошибку в консоль
   console.error('Error:', err);

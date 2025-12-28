@@ -12,7 +12,12 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-export const storageConfig = {
+const config = {
   uploadDir: path.resolve(uploadDir),
   maxFileSize
 };
+
+console.log('DEBUG storage.ts: Exporting config =', config);
+
+export const storageConfig = config;
+export default config;

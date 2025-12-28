@@ -1,9 +1,14 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { Request } from 'express';
+import { StringValue } from 'ms';
 import { Token } from '../models/Token';
-import { jwtConfig } from '../config/jwt';
 import { TokenPair } from '../types';
+
+// JWT конфигурация из переменных окружения
+const JWT_SECRET = process.env.JWT_SECRET || 'default_secret_key';
+const JWT_EXPIRES_IN: StringValue = (process.env.JWT_EXPIRES_IN || '10m') as StringValue;
+const REFRESH_TOKEN_EXPIRES_DAYS = parseInt(process.env.REFRESH_TOKEN_EXPIRES_DAYS || '7', 10);
 
 /**
  * Сервис для работы с JWT и Refresh токенами
@@ -45,11 +50,16 @@ export class TokenService {
    * @returns Пара токенов
    */
   static async generateTokenPair(userId: string, deviceId: string): Promise<TokenPair> {
+    // Проверяем что JWT secret настроен
+    if (!JWT_SECRET) {
+      throw new Error('JWT secret is not configured');
+    }
+
     // Генерируем JWT токен
     const jwtToken = jwt.sign(
       { userId, deviceId },              // Payload (данные в токене)
-      jwtConfig.secret,                  // Секретный ключ для подписи
-      { expiresIn: jwtConfig.expiresIn } // Время жизни: 10 минут
+      JWT_SECRET,                        // Секретный ключ для подписи
+      { expiresIn: JWT_EXPIRES_IN }      // Время жизни: 10 минут
     );
 
     // Генерируем refresh токен (случайная строка)
@@ -57,7 +67,7 @@ export class TokenService {
 
     // Вычисляем дату истечения refresh токена
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + jwtConfig.refreshTokenExpiresDays);
+    expiresAt.setDate(expiresAt.getDate() + REFRESH_TOKEN_EXPIRES_DAYS);
 
     // Сохраняем токены в БД
     await Token.create({
@@ -94,11 +104,16 @@ export class TokenService {
       throw new Error('Invalid or expired refresh token');
     }
 
+    // Проверяем что JWT secret настроен
+    if (!JWT_SECRET) {
+      throw new Error('JWT secret is not configured');
+    }
+
     // Генерируем новый JWT токен с теми же данными
     const newJwtToken = jwt.sign(
       { userId: tokenRecord.user_id, deviceId: tokenRecord.device_id },
-      jwtConfig.secret,
-      { expiresIn: jwtConfig.expiresIn }
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
     );
 
     // Обновляем JWT в базе
@@ -115,8 +130,13 @@ export class TokenService {
    * @throws Error если токен невалидный
    */
   static verifyToken(token: string): { userId: string; deviceId: string } {
+    // Проверяем что JWT secret настроен
+    if (!JWT_SECRET) {
+      throw new Error('JWT secret is not configured');
+    }
+
     try {
-      const decoded = jwt.verify(token, jwtConfig.secret) as {
+      const decoded = jwt.verify(token, JWT_SECRET) as {
         userId: string;
         deviceId: string;
       };
